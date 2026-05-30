@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"net/http/httputil"
+	"net/url"
 )
 
 type HealthResponse struct {
@@ -30,6 +32,17 @@ func sidecarHealthHandler(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, response)
 }
 
+func createReverseProxy(target string) http.Handler {
+	targetURL, err := url.Parse(target)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	proxy := httputil.NewSingleHostReverseProxy(targetURL)
+
+	return proxy
+}
+
 func writeJSON(w http.ResponseWriter, statusCode int, response any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
@@ -39,9 +52,13 @@ func writeJSON(w http.ResponseWriter, statusCode int, response any) {
 func main() {
 	mux := http.NewServeMux()
 
+	deskMessProxy := createReverseProxy("http://localhost:9090")
+
 	mux.HandleFunc("/sidecar/health", sidecarHealthHandler)
+	mux.Handle("/", deskMessProxy)
 
 	log.Println("Entropy Sidecar is running on port 8080")
+	log.Println("Proxying requests to Desk Mess Service on port 9090")
 
 	err := http.ListenAndServe(":8080", mux)
 	if err != nil {
