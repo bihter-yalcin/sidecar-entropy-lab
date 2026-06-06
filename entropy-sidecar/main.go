@@ -3,6 +3,7 @@ package main
 import (
 	"entropy-sidecar/cache"
 	"entropy-sidecar/handlers"
+	"entropy-sidecar/metrics"
 	"entropy-sidecar/proxy"
 	"log"
 	"net/http"
@@ -13,14 +14,17 @@ func main() {
 	mux := http.NewServeMux()
 
 	redisClient := cache.NewRedisClient()
+	metricsStore := metrics.NewMetrics()
 
 	cacheProxy := proxy.NewCacheProxy(
 		"http://localhost:9090",
 		redisClient,
 		15*time.Second,
+		metricsStore,
 	)
 
 	mux.HandleFunc("/sidecar/health", handlers.SidecarHealthHandler)
+	mux.HandleFunc("/sidecar/metrics", handlers.MetricsHandler(metricsStore))
 	mux.Handle("/", cacheProxy)
 
 	log.Println("Entropy Sidecar is running on port 8080")
