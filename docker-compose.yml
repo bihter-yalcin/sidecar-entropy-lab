@@ -1,0 +1,26 @@
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: sidecar-entropy-redis
+    ports:
+      - "6379:6379"
+
+  desk-mess-service:
+    build:
+      context: ./desk-mess-service
+    container_name: desk-mess-service
+    ports:
+      - "9090:9090"
+
+  entropy-sidecar:
+    build:
+      context: ./entropy-sidecar
+    container_name: entropy-sidecar
+    ports:
+      - "8080:8080"
+    environment:
+      TARGET_SERVICE_URL: http://desk-mess-service:9090
+      REDIS_ADDR: redis:6379
+    depends_on:
+      - redis
+      - desk-mess-service

@@ -7,17 +7,23 @@ import (
 	"entropy-sidecar/proxy"
 	"log"
 	"net/http"
+	"os"
 	"time"
 )
 
 func main() {
 	mux := http.NewServeMux()
 
+	targetServiceURL := os.Getenv("TARGET_SERVICE_URL")
+	if targetServiceURL == "" {
+		targetServiceURL = "http://localhost:9090"
+	}
+
 	redisClient := cache.NewRedisClient()
 	metricsStore := metrics.NewMetrics()
 
 	cacheProxy := proxy.NewCacheProxy(
-		"http://localhost:9090",
+		targetServiceURL,
 		redisClient,
 		15*time.Second,
 		metricsStore,
@@ -28,8 +34,8 @@ func main() {
 	mux.Handle("/", cacheProxy)
 
 	log.Println("Entropy Sidecar is running on port 8080")
-	log.Println("Proxying requests to Desk Mess Service on port 9090")
-	log.Println("Redis cache is running on localhost:6379")
+	log.Printf("Proxying requests to Desk Mess Service at %s", targetServiceURL)
+	log.Printf("Redis cache is running on %s", os.Getenv("REDIS_ADDR"))
 
 	err := http.ListenAndServe(":8080", mux)
 	if err != nil {
